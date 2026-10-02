@@ -40,3 +40,26 @@ class FunzioniStatistiche:
         freq = self.creazioneArrayFrequenzeAssolute(array)
         return array[freq.index(max(freq))]
 
+    def varianza(self, array: list):
+        media = self.mediaCampionaria(array)
+        return sum((x - media) ** 2 for x in array) / len(array)
+
+    def deviazioneStandard(self, array: list):
+        return self.varianza(array) ** 0.5
+
+    def indiceAsimmetria(self, array: list):
+        n = len(array)
+        media = self.mediaCampionaria(array)
+        s = self.deviazioneStandard(array)
+        m3 = sum((x - media) ** 3 for x in array) / n
+        return m3 / s ** 3
+
+    def curtosi(self, array: list):
+        n = len(array)
+        media = self.mediaCampionaria(array)
+        s = self.deviazioneStandard(array)
+        m4 = sum((x - media) ** 4 for x in array) / n
+        return m4 / s ** 4
+
+    def curtosiEccesso(self, array: list):
+        return self.curtosi(array) - 3
