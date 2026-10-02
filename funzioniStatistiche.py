@@ -13,9 +13,18 @@ class FunzioniStatistiche:
     def frequenzaRelativa(self, elemento, array: list):
         return self.frequenzaAssoluta(elemento, array) / len(array)
 
-    def frequenzaAssoultaCummulativa(self, array: list):
-        b = self.creazioneArrayFrequenzeAssolute(array)
-        for
+    def frequenzaAssolutaCumulativa(self, array: list):
+        cumulata = {}
+        totale = 0
+        for valore in sorted(set(array)):
+            totale += self.frequenzaAssoluta(valore, array)
+            cumulata[valore] = totale
+        return cumulata
+
+    def frequenzaRelativaCumulativa(self, array: list):
+        n = len(array)
+        assolute = self.frequenzaAssolutaCumulativa(array)
+        return {valore: f / n for valore, f in assolute.items()}
 
     def mediaCampionaria(self, array: list):
         return sum(array) / len(array)
