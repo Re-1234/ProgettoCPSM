@@ -50,6 +50,8 @@ class FunzioniStatistiche:
         return self.varianza(array) ** 0.5
 
     def scartoMedioAssoluto(self, array: list):
+        # corretto: si scorrono TUTTI i valori (non set(array)),
+        # altrimenti i valori ripetuti verrebbero contati una sola volta
         c = self.mediaCampionaria(array)
         return sum(abs(x - c) for x in array) / len(array)
 

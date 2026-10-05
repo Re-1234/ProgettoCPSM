@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox
 
 from funzioniStatistiche import FunzioniStatistiche
+from grafici import FinestraGrafici
 
 
 class App(tk.Tk):
@@ -11,6 +12,7 @@ class App(tk.Tk):
         self.geometry("760x680")
         self.minsize(600, 500)
         self.stat = FunzioniStatistiche()
+        self.ultimi_dati = None
 
         self.columnconfigure(0, weight=1)
         self.rowconfigure(2, weight=1)
@@ -29,6 +31,7 @@ class App(tk.Tk):
         buttons = ttk.Frame(self)
         buttons.grid(row=1, column=0, pady=5)
         ttk.Button(buttons, text="Calcola", command=self.calcola).pack(side="left", padx=5)
+        ttk.Button(buttons, text="Mostra grafici", command=self.apri_grafici).pack(side="left", padx=5)
         ttk.Button(buttons, text="Pulisci", command=self.pulisci).pack(side="left", padx=5)
 
         # --- TextArea 1: tabella frequenze ---
@@ -74,6 +77,7 @@ class App(tk.Tk):
             messagebox.showerror("Errore", str(e))
             return
 
+        self.ultimi_dati = dati
         s, fmt = self.stat, self.fmt
         cum_ass = s.frequenzaAssolutaCumulativa(dati)
         cum_rel = s.frequenzaRelativaCumulativa(dati)
@@ -114,7 +118,16 @@ class App(tk.Tk):
             ]
         self.scrivi(self.area_indici, "\n".join(out))
 
+    def apri_grafici(self):
+        try:
+            dati = self.leggi_dati()
+        except ValueError as e:
+            messagebox.showerror("Errore", str(e))
+            return
+        FinestraGrafici(self, dati)
+
     def pulisci(self):
+        self.ultimi_dati = None
         self.entry.delete(0, tk.END)
         self.scrivi(self.area_freq, "")
         self.scrivi(self.area_indici, "")
