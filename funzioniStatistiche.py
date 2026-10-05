@@ -1,5 +1,5 @@
 class FunzioniStatistiche:
-
+    # frequenze
     def frequenzaAssoluta(self, elemento, array: list):
         c = 0
         for x in array:
@@ -26,6 +26,8 @@ class FunzioniStatistiche:
         assolute = self.frequenzaAssolutaCumulativa(array)
         return {valore: f / n for valore, f in assolute.items()}
 
+    # indici di posizione
+
     def mediaCampionaria(self, array: list):
         return sum(array) / len(array)
 
@@ -40,12 +42,27 @@ class FunzioniStatistiche:
         freq = self.creazioneArrayFrequenzeAssolute(array)
         return array[freq.index(max(freq))]
 
+    # indici di variabilità
+
     def varianza(self, array: list):
         media = self.mediaCampionaria(array)
         return sum((x - media) ** 2 for x in array) / len(array)
 
     def deviazioneStandard(self, array: list):
         return self.varianza(array) ** 0.5
+
+    def scartoMedioAssoluto(self,array: list):
+        c = self.mediaCampionaria(array)
+        x = 0
+        for valore in sorted(set(array)):
+            x += abs(valore - c)
+        x /= len(array)
+        return x
+
+    def ampiezzaCampoVarianza(self, array: list):
+        return max(array) - min(array)
+
+    # indici di forma
 
     def indiceAsimmetria(self, array: list):
         n = len(array)
