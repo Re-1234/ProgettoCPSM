@@ -3,13 +3,14 @@ from tkinter import ttk, scrolledtext, messagebox
 
 from funzioniStatistiche import FunzioniStatistiche
 from grafici import FinestraGrafici
+from Bivariati import FinestraBivariati
 
 
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Statistica descrittiva")
-        self.geometry("760x680")
+        self.geometry("760x780")
         self.minsize(600, 500)
         self.stat = FunzioniStatistiche()
         self.ultimi_dati = None
@@ -32,6 +33,7 @@ class App(tk.Tk):
         buttons.grid(row=1, column=0, pady=5)
         ttk.Button(buttons, text="Calcola", command=self.calcola).pack(side="left", padx=5)
         ttk.Button(buttons, text="Mostra grafici", command=self.apri_grafici).pack(side="left", padx=5)
+        ttk.Button(buttons, text="Dati bivariati", command=self.apri_bivariati).pack(side="left", padx=5)
         ttk.Button(buttons, text="Pulisci", command=self.pulisci).pack(side="left", padx=5)
 
         # --- TextArea 1: tabella frequenze ---
@@ -79,6 +81,7 @@ class App(tk.Tk):
 
         self.ultimi_dati = dati
         s, fmt = self.stat, self.fmt
+        outlier = ", ".join(fmt(v) for v in sorted(set(s.outlier(dati)))) or "nessuno"
         cum_ass = s.frequenzaAssolutaCumulativa(dati)
         cum_rel = s.frequenzaRelativaCumulativa(dati)
 
@@ -99,6 +102,15 @@ class App(tk.Tk):
             f"Media campionaria     : {fmt(s.mediaCampionaria(dati))}",
             f"Mediana campionaria   : {fmt(s.medianaCampionaria(dati))}",
             f"Moda campionaria      : {fmt(s.modaCampionaria(dati))}",
+            "",
+            "-- Quartili --",
+            f"{'Primo quartile (Q1)':<22}: {fmt(s.primoQuartile(dati))}",
+            f"{'Secondo quartile (Q2)':<22}: {fmt(s.secondoQuartile(dati))}",
+            f"{'Terzo quartile (Q3)':<22}: {fmt(s.terzoQuartile(dati))}",
+            f"{'Scarto interquartile':<22}: {fmt(s.scartoInterquartile(dati))}",
+            f"{'Limite inf. outlier':<22}: {fmt(s.limitiOutlier(dati)[0])}",
+            f"{'Limite sup. outlier':<22}: {fmt(s.limitiOutlier(dati)[1])}",
+            f"{'Outlier':<22}: {outlier}",
             "",
             "-- Variabilità --",
             f"Varianza              : {fmt(s.varianza(dati))}",
@@ -125,6 +137,9 @@ class App(tk.Tk):
             messagebox.showerror("Errore", str(e))
             return
         FinestraGrafici(self, dati)
+
+    def apri_bivariati(self):
+        FinestraBivariati(self)
 
     def pulisci(self):
         self.ultimi_dati = None

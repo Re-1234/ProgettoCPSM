@@ -1,3 +1,6 @@
+import math
+
+
 class FunzioniStatistiche:
     # frequenze
     def frequenzaAssoluta(self, elemento, array: list):
@@ -75,3 +78,54 @@ class FunzioniStatistiche:
 
     def curtosiEccesso(self, array: list):
         return self.curtosi(array) - 3
+
+    # quartili (stesso metodo della mediana: p-esimo quantile)
+    def percentile(self, array: list, p: float):
+        """p-esimo quantile, con 0 < p < 1 (dati ordinati, posizioni da 1).
+        Se n*p non e' intero si prende il dato in posizione ceil(n*p);
+        se n*p e' intero si fa la media tra i dati in posizione n*p e n*p + 1."""
+        if not 0 < p < 1:
+            raise ValueError("p deve essere compreso tra 0 e 1 (estremi esclusi)")
+        a = sorted(array)
+        k = len(a) * p
+        if abs(k - round(k)) < 1e-9:
+            k = round(k)
+            return (a[k - 1] + a[k]) / 2
+        return a[math.ceil(k) - 1]
+
+    def primoQuartile(self, array: list):
+        return self.percentile(array, 0.25)
+
+    def secondoQuartile(self, array: list):
+        return self.medianaCampionaria(array)
+
+    def terzoQuartile(self, array: list):
+        return self.percentile(array, 0.75)
+
+    def scartoInterquartile(self, array: list):
+        return self.terzoQuartile(array) - self.primoQuartile(array)
+
+    def limitiOutlier(self, array: list):
+        q1 = self.primoQuartile(array)
+        q3 = self.terzoQuartile(array)
+        iqr = q3 - q1
+        return q1 - 1.5 * iqr, q3 + 1.5 * iqr
+
+    def outlier(self, array: list):
+        inf, sup = self.limitiOutlier(array)
+        return sorted(x for x in array if x < inf or x > sup)
+
+    # dati bivariati
+    def covarianza(self, x: list, y: list):
+        if len(x) != len(y):
+            raise ValueError("x e y devono avere lo stesso numero di valori")
+        mx = self.mediaCampionaria(x)
+        my = self.mediaCampionaria(y)
+        return sum((a - mx) * (b - my) for a, b in zip(x, y)) / len(x)
+
+    def coefficienteCorrelazione(self, x: list, y: list):
+        sx = self.deviazioneStandard(x)
+        sy = self.deviazioneStandard(y)
+        if math.isclose(sx, 0, abs_tol=1e-12) or math.isclose(sy, 0, abs_tol=1e-12):
+            raise ValueError("Correlazione non definita: una delle due variabili è costante")
+        return self.covarianza(x, y) / (sx * sy)
