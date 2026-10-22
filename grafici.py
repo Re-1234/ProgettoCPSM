@@ -10,16 +10,76 @@ BARRE = "Grafico a barre"
 ASTA = "Grafico ad asta"
 LINEE = "Grafico a linee"
 TORTA = "Grafico a torta"
-TIPI_GRAFICO = [BARRE, ASTA, LINEE, TORTA]
+BOXPLOT = "Box plot"
+TIPI_GRAFICO = [BARRE, ASTA, LINEE, TORTA, BOXPLOT]
+
+
+def sincronizza_canvas(canvas):
+    """Allinea la figura alle dimensioni reali del widget: all'apertura della
+    finestra la figura puo' risultare piu' grande dell'area e venire tagliata."""
+    try:
+        w = canvas.get_tk_widget()
+        w.event_generate("<Configure>", width=w.winfo_width(), height=w.winfo_height())
+    except tk.TclError:
+        pass  # finestra gia' chiusa
 
 
 def _etichetta(v):
     return str(int(v)) if float(v).is_integer() else f"{v:.2f}"
 
 
+def disegna_boxplot(ax, dati: list, stat: FunzioniStatistiche,
+                    titolo: str = "Box plot", dettagli: bool = True):
+    """Box plot costruito con i quartili della classe FunzioniStatistiche.
+    Se dettagli=True aggiunge il riquadro con i valori numerici."""
+    e = _etichetta
+    q1 = stat.primoQuartile(dati)
+    med = stat.medianaCampionaria(dati)
+    q3 = stat.terzoQuartile(dati)
+    media = stat.mediaCampionaria(dati)
+    lim_inf, lim_sup = stat.limitiOutlier(dati)
+    anomali = stat.outlier(dati)
+    interni = [v for v in dati if lim_inf <= v <= lim_sup]
+    baffo_inf, baffo_sup = min(interni), max(interni)
+
+    ax.bxp(
+        [{"med": med, "q1": q1, "q3": q3, "whislo": baffo_inf, "whishi": baffo_sup,
+          "fliers": anomali, "mean": media}],
+        showmeans=True,
+        patch_artist=True,
+        boxprops={"facecolor": "#9ecae1", "edgecolor": "black"},
+        medianprops={"color": "#d62728", "linewidth": 2},
+        meanprops={"marker": "D", "markerfacecolor": "white", "markeredgecolor": "black"},
+        flierprops={"marker": "o", "markerfacecolor": "none"},
+    )
+    if dettagli:
+        righe = [
+            f"Massimo (baffo)  : {e(baffo_sup)}",
+            f"Terzo quartile   : {e(q3)}",
+            f"Mediana          : {e(med)}",
+            f"Primo quartile   : {e(q1)}",
+            f"Minimo (baffo)   : {e(baffo_inf)}",
+            f"Media (rombo)    : {e(media)}",
+            f"Scarto interquart: {e(q3 - q1)}",
+            "Outlier          : " + (", ".join(e(v) for v in sorted(set(anomali))) or "nessuno"),
+        ]
+        ax.text(0.58, 0.5, "\n".join(righe), transform=ax.transAxes, va="center",
+                family="monospace", fontsize=9,
+                bbox={"boxstyle": "round", "facecolor": "white", "edgecolor": "gray"})
+        ax.set_xlim(0.4, 2.2)
+    ax.set_title(titolo)
+    ax.set_ylabel("Valori")
+    ax.set_xticks([])
+    ax.grid(axis="y", linestyle="--", alpha=0.4)
+
+
 def disegna(fig: Figure, dati: list, stat: FunzioniStatistiche, tipo: str):
     """Pulisce la figura e disegna i grafici del tipo scelto."""
     fig.clear()
+
+    if tipo == BOXPLOT:
+        disegna_boxplot(fig.add_subplot(1, 1, 1), dati, stat)
+        return
 
     valori = sorted(set(dati))
     etichette = [_etichetta(v) for v in valori]
@@ -121,6 +181,7 @@ class FinestraGrafici(tk.Toplevel):
         toolbar.update()
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
         self.aggiorna()
+        self.after(150, lambda: sincronizza_canvas(self.canvas))
 
     def aggiorna(self):
         disegna(self.fig, self.dati, self.stat, self.scelta.get())
