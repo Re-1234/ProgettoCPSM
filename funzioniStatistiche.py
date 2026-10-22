@@ -129,3 +129,13 @@ class FunzioniStatistiche:
         if math.isclose(sx, 0, abs_tol=1e-12) or math.isclose(sy, 0, abs_tol=1e-12):
             raise ValueError("Correlazione non definita: una delle due variabili è costante")
         return self.covarianza(x, y) / (sx * sy)
+
+    # retta di regressione  y = a + b x  (minimi quadrati)
+    def coefficienteAngolare(self, x: list, y: list):
+        vx = self.varianza(x)
+        if math.isclose(vx, 0, abs_tol=1e-12):
+            raise ValueError("Retta non definita: tutti i valori di X sono uguali")
+        return self.covarianza(x, y) / vx
+
+    def intercetta(self, x: list, y: list):
+        return self.mediaCampionaria(y) - self.coefficienteAngolare(x, y) * self.mediaCampionaria(x)

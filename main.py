@@ -25,7 +25,6 @@ class App(tk.Tk):
         frame_in.columnconfigure(0, weight=1)
         self.entry = ttk.Entry(frame_in)
         self.entry.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
-        self.entry.insert(0, "2, 4, 4, 5, 7, 9, 4")
         self.entry.bind("<Return>", lambda e: self.calcola())
 
         # --- Pulsanti ---
