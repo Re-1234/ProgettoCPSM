@@ -139,3 +139,28 @@ class FunzioniStatistiche:
 
     def intercetta(self, x: list, y: list):
         return self.mediaCampionaria(y) - self.coefficienteAngolare(x, y) * self.mediaCampionaria(x)
+
+    # classi: intervalli [a, b); l'ultima classe include anche l'estremo b
+    def frequenzaAssolutaClasse(self, array: list, a, b, ultima: bool = False):
+        c = 0
+        for x in array:
+            if a <= x < b or (ultima and x == b):
+                c += 1
+        return c
+
+    def frequenzaRelativaClasse(self, array: list, a, b, ultima: bool = False):
+        return self.frequenzaAssolutaClasse(array, a, b, ultima) / len(array)
+
+    def ampiezzaClasse(self, a, b):
+        return b - a
+
+    def densitaFrequenza(self, array: list, a, b, ultima: bool = False):
+        """Frequenza assoluta divisa per l'ampiezza della classe."""
+        return self.frequenzaAssolutaClasse(array, a, b, ultima) / (b - a)
+
+    def frequenzeClassi(self, array: list, classi: list):
+        """Frequenze assolute di ogni classe (lista di coppie (a, b) ordinate)."""
+        return [
+            self.frequenzaAssolutaClasse(array, a, b, k == len(classi) - 1)
+            for k, (a, b) in enumerate(classi)
+        ]

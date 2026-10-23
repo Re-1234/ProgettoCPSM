@@ -1,3 +1,4 @@
+import math
 import tkinter as tk
 from tkinter import ttk
 
@@ -12,7 +13,13 @@ ASTA = "Grafico ad asta"
 LINEE = "Grafico a linee"
 TORTA = "Grafico a torta"
 BOXPLOT = "Box plot"
+ISTOGRAMMA = "Istogramma"
 TIPI_GRAFICO = [BARRE, ASTA, LINEE, TORTA, BOXPLOT]
+
+
+def tipi_disponibili(classi) -> list:
+    """Con le classi attive si puo' usare solo l'istogramma."""
+    return [ISTOGRAMMA] if classi else TIPI_GRAFICO
 
 
 def sincronizza_canvas(canvas):
@@ -74,9 +81,47 @@ def disegna_boxplot(ax, dati: list, stat: FunzioniStatistiche,
     ax.grid(axis="y", linestyle="--", alpha=0.4)
 
 
-def disegna(fig: Figure, dati: list, stat: FunzioniStatistiche, tipo: str):
+def disegna_istogramma(ax, dati: list, stat: FunzioniStatistiche, classi: list):
+    """Istogramma: la larghezza di ogni barra e' l'ampiezza della sua classe.
+    Con ampiezze uguali l'altezza e' la frequenza assoluta; con ampiezze diverse
+    l'altezza e' la densita' di frequenza (f / ampiezza), cosi' l'area di ogni
+    barra resta proporzionale alla frequenza."""
+    freq = stat.frequenzeClassi(dati, classi)
+    ampiezze = [b - a for a, b in classi]
+    uguali = all(math.isclose(w, ampiezze[0]) for w in ampiezze)
+    if uguali:
+        altezze = freq
+        ylabel = "Frequenza assoluta"
+        titolo = "Istogramma"
+    else:
+        altezze = [f / w for f, w in zip(freq, ampiezze)]
+        ylabel = "Densità di frequenza (f / ampiezza)"
+        titolo = "Istogramma\n(classi di ampiezza diversa: l'area di ogni barra è proporzionale alla frequenza)"
+
+    ax.bar([a for a, _ in classi], altezze, width=ampiezze, align="edge",
+           color="#4C78A8", edgecolor="black")
+    for (a, b), f, h in zip(classi, freq, altezze):
+        ax.annotate(str(f) if uguali else f"f = {f}", ((a + b) / 2, h),
+                    textcoords="offset points", xytext=(0, 4), ha="center", fontsize=8)
+    estremi = sorted({v for c in classi for v in c})
+    ax.set_xticks(estremi)
+    ax.set_xticklabels([_etichetta(v) for v in estremi])
+    ax.set_xlabel("Classi")
+    ax.set_ylabel(ylabel)
+    ax.set_title(titolo, fontsize=11)
+    ax.set_ylim(0, max(altezze) * 1.2 if max(altezze) > 0 else 1)
+    if uguali:
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    ax.grid(axis="y", linestyle="--", alpha=0.4)
+
+
+def disegna(fig: Figure, dati: list, stat: FunzioniStatistiche, tipo: str, classi=None):
     """Pulisce la figura e disegna i grafici del tipo scelto."""
     fig.clear()
+
+    if classi:
+        disegna_istogramma(fig.add_subplot(1, 1, 1), dati, stat, classi)
+        return
 
     if tipo == BOXPLOT:
         disegna_boxplot(fig.add_subplot(1, 1, 1), dati, stat)
@@ -139,33 +184,35 @@ def disegna(fig: Figure, dati: list, stat: FunzioniStatistiche, tipo: str):
         ax.grid(axis="y", linestyle="--", alpha=0.4)
 
 
-def crea_figura(dati: list, stat: FunzioniStatistiche, tipo: str = BARRE) -> Figure:
+def crea_figura(dati: list, stat: FunzioniStatistiche, tipo: str = BARRE, classi=None) -> Figure:
     fig = Figure(figsize=(10, 7), tight_layout=True)
-    disegna(fig, dati, stat, tipo)
+    disegna(fig, dati, stat, tipo, classi)
     return fig
 
 
 class FinestraGrafici(tk.Toplevel):
-    """Seconda finestra: l'utente sceglie il tipo di grafico (matplotlib)."""
+    """Seconda finestra: l'utente sceglie il tipo di grafico (matplotlib).
+    Se sono attive le classi e' disponibile solo l'istogramma."""
 
-    def __init__(self, master, dati: list):
+    def __init__(self, master, dati: list, classi=None):
         super().__init__(master)
         self.title("Grafici")
         self.geometry("900x740")
         self.dati = dati
+        self.classi = classi
         self.stat = FunzioniStatistiche()
 
         # --- Scelta del tipo di grafico ---
         barra = ttk.Frame(self)
         barra.pack(fill="x", padx=10, pady=8)
         ttk.Label(barra, text="Tipo di grafico:").pack(side="left")
-        self.scelta = tk.StringVar(value=BARRE)
-        combo = ttk.Combobox(
-            barra, textvariable=self.scelta, values=TIPI_GRAFICO,
-            state="readonly", width=22,
+        tipi = tipi_disponibili(classi)
+        self.scelta = tk.StringVar(value=tipi[0])
+        self.combo = ttk.Combobox(
+            barra, textvariable=self.scelta, values=tipi, state="readonly", width=22,
         )
-        combo.pack(side="left", padx=8)
-        combo.bind("<<ComboboxSelected>>", lambda e: self.aggiorna())
+        self.combo.pack(side="left", padx=8)
+        self.combo.bind("<<ComboboxSelected>>", lambda e: self.aggiorna())
 
         # --- Figura matplotlib ---
         self.fig = Figure(figsize=(10, 7), tight_layout=True)
@@ -176,6 +223,14 @@ class FinestraGrafici(tk.Toplevel):
         self.aggiorna()
         self.after(150, lambda: sincronizza_canvas(self.canvas))
 
+    def imposta_classi(self, classi):
+        """Chiamata quando l'utente cambia (o rimuove) le classi a finestra aperta."""
+        self.classi = classi
+        tipi = tipi_disponibili(classi)
+        self.combo.config(values=tipi)
+        self.scelta.set(tipi[0])
+        self.aggiorna()
+
     def aggiorna(self):
-        disegna(self.fig, self.dati, self.stat, self.scelta.get())
+        disegna(self.fig, self.dati, self.stat, self.scelta.get(), self.classi)
         self.canvas.draw()

@@ -4,6 +4,7 @@ from tkinter import ttk, scrolledtext, messagebox
 from funzioniStatistiche import FunzioniStatistiche
 from grafici import FinestraGrafici
 from Bivariati import FinestraBivariati
+from Classi import FinestraClassi, testo_tabella_classi
 
 
 class App(tk.Tk):
@@ -13,6 +14,8 @@ class App(tk.Tk):
         self.geometry("760x780")
         self.minsize(600, 500)
         self.stat = FunzioniStatistiche()
+        self.classi = None  # None = dati singoli; altrimenti lista di (a, b)
+        self.fin_grafici = None
         self.ultimi_dati = None
 
         self.columnconfigure(0, weight=1)
@@ -31,12 +34,13 @@ class App(tk.Tk):
         buttons = ttk.Frame(self)
         buttons.grid(row=1, column=0, pady=5)
         ttk.Button(buttons, text="Calcola", command=self.calcola).pack(side="left", padx=5)
+        ttk.Button(buttons, text="Classi...", command=self.apri_classi).pack(side="left", padx=5)
         ttk.Button(buttons, text="Mostra grafici", command=self.apri_grafici).pack(side="left", padx=5)
         ttk.Button(buttons, text="Dati bivariati", command=self.apri_bivariati).pack(side="left", padx=5)
         ttk.Button(buttons, text="Pulisci", command=self.pulisci).pack(side="left", padx=5)
 
         # --- TextArea 1: tabella frequenze ---
-        f1 = ttk.LabelFrame(self, text="Tabella delle frequenze")
+        f1 = self.frame_freq = ttk.LabelFrame(self, text="Tabella delle frequenze")
         f1.grid(row=2, column=0, sticky="nsew", padx=10, pady=5)
         self.area_freq = scrolledtext.ScrolledText(
             f1, wrap=tk.NONE, height=8, state="disabled", font=("Courier", 10)
@@ -85,13 +89,16 @@ class App(tk.Tk):
         cum_rel = s.frequenzaRelativaCumulativa(dati)
 
         # tabella frequenze
-        righe = [f"{'Valore':>10}{'f ass':>8}{'f rel':>10}{'F ass':>8}{'F rel':>10}"]
-        for v in sorted(set(dati)):
-            righe.append(
-                f"{fmt(v):>10}{s.frequenzaAssoluta(v, dati):>8}"
-                f"{s.frequenzaRelativa(v, dati):>10.4f}{cum_ass[v]:>8}{cum_rel[v]:>10.4f}"
-            )
-        self.scrivi(self.area_freq, "\n".join(righe))
+        if self.classi:
+            self.scrivi(self.area_freq, testo_tabella_classi(dati, self.classi, s))
+        else:
+            righe = [f"{'Valore':>10}{'f ass':>8}{'f rel':>10}{'F ass':>8}{'F rel':>10}"]
+            for v in sorted(set(dati)):
+                righe.append(
+                    f"{fmt(v):>10}{s.frequenzaAssoluta(v, dati):>8}"
+                    f"{s.frequenzaRelativa(v, dati):>10.4f}{cum_ass[v]:>8}{cum_rel[v]:>10.4f}"
+                )
+            self.scrivi(self.area_freq, "\n".join(righe))
 
         # indici
         out = [
@@ -135,7 +142,26 @@ class App(tk.Tk):
         except ValueError as e:
             messagebox.showerror("Errore", str(e))
             return
-        FinestraGrafici(self, dati)
+        self.fin_grafici = FinestraGrafici(self, dati, self.classi)
+
+    def apri_classi(self):
+        try:
+            dati = self.leggi_dati()
+            suggerimento = f"Valori inseriti: da {self.fmt(min(dati))} a {self.fmt(max(dati))}"
+        except ValueError:
+            suggerimento = ""
+        FinestraClassi(self, self.classi, self.imposta_classi, suggerimento)
+
+    def imposta_classi(self, classi):
+        """Attiva (lista di intervalli) o disattiva (None) la modalita' a classi."""
+        self.classi = classi
+        self.frame_freq.config(
+            text="Tabella delle frequenze (per classi)" if classi else "Tabella delle frequenze"
+        )
+        if self.fin_grafici is not None and self.fin_grafici.winfo_exists():
+            self.fin_grafici.imposta_classi(classi)
+        if self.entry.get().strip():
+            self.calcola()
 
     def apri_bivariati(self):
         FinestraBivariati(self)
