@@ -5,7 +5,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
 from funzioniStatistiche import FunzioniStatistiche
-from grafici import disegna_boxplot, sincronizza_canvas
+from grafici import sincronizza_canvas
 from Tabella import TabellaDati
 
 
@@ -65,12 +65,9 @@ def calcola_bivariati(x: list, y: list, stat: FunzioniStatistiche):
 
 
 def disegna_grafici(fig: Figure, x: list, y: list, r, stat: FunzioniStatistiche, retta=None):
-    """In alto il diagramma di dispersione (con la retta, se richiesta),
-    sotto i box plot di X e di Y."""
+    """Diagramma di dispersione (con la retta di regressione, se richiesta)."""
     fig.clear()
-    gs = fig.add_gridspec(2, 2, height_ratios=[3, 2])
-
-    ax = fig.add_subplot(gs[0, :])
+    ax = fig.add_subplot(1, 1, 1)
     ax.scatter(x, y, color="#4C78A8", edgecolor="none", s=30, zorder=3)
     if retta is not None:
         a, b = retta
@@ -87,14 +84,11 @@ def disegna_grafici(fig: Figure, x: list, y: list, r, stat: FunzioniStatistiche,
     ax.set_title(titolo)
     ax.grid(linestyle="--", alpha=0.4)
 
-    disegna_boxplot(fig.add_subplot(gs[1, 0]), x, stat, "Box plot di X", dettagli=False)
-    disegna_boxplot(fig.add_subplot(gs[1, 1]), y, stat, "Box plot di Y", dettagli=False)
-
 
 class FinestraBivariati(tk.Toplevel):
     """Finestra per i dati bivariati: diagramma di dispersione e correlazione."""
 
-    def __init__(self, master):
+    def __init__(self, master, dati_x=None):
         super().__init__(master)
         self.title("Dati bivariati")
         self.geometry("1180x760")
@@ -113,9 +107,21 @@ class FinestraBivariati(tk.Toplevel):
 
         fd = ttk.LabelFrame(sx, text="Dati")
         fd.grid(row=0, column=0, sticky="ew", pady=(0, 5))
+        if dati_x:
+            ttk.Label(
+                fd, text="La colonna X contiene i dati inseriti nella schermata principale: "
+                         "completa la colonna Y.",
+                wraplength=380, justify="left", foreground="#1f4e79",
+            ).pack(anchor="w", padx=8, pady=(4, 0))
         self.tabella = TabellaDati(fd, altezza=230)
         self.tabella.pack(fill="x", padx=5, pady=(5, 2))
-        self.tabella.imposta([(1, 2), (2, 4), (3, 5), (4, 4), (5, 5), (6, 7), (7, 8), (8, 9)])
+        if dati_x:
+            self.tabella.svuota(0)
+            for v in dati_x:
+                self.tabella.aggiungi_riga(self.tabella._testo(v), "")
+            self.after(200, lambda: self.tabella.righe[0][2].focus_set())
+        else:
+            self.tabella.svuota(8)
         gestione = ttk.Frame(fd)
         gestione.pack(pady=(0, 5))
         ttk.Button(gestione, text="Aggiungi riga",
@@ -136,18 +142,17 @@ class FinestraBivariati(tk.Toplevel):
         self.area_risultati.pack(fill="both", expand=True, padx=5, pady=5)
 
         # --- Colonna destra: diagramma di dispersione ---
-        dx = ttk.LabelFrame(self, text="Grafici")
+        dx = ttk.LabelFrame(self, text="Diagramma di dispersione")
         dx.grid(row=0, column=1, sticky="nsew", padx=(5, 10), pady=10)
         ttk.Checkbutton(
             dx, text="Mostra retta di regressione",
             variable=self.mostra_retta, command=self.ridisegna,
         ).pack(side="top", anchor="w", padx=8, pady=(4, 0))
-        self.fig = Figure(figsize=(6, 6.5), tight_layout=True)
+        self.fig = Figure(figsize=(6, 5), tight_layout=True)
         self.canvas = FigureCanvasTkAgg(self.fig, master=dx)
         NavigationToolbar2Tk(self.canvas, dx).update()
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
 
-        self.calcola()
         self.after(150, lambda: sincronizza_canvas(self.canvas))
 
     def _scrivi(self, testo):

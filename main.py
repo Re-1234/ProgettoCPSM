@@ -164,7 +164,12 @@ class App(tk.Tk):
             self.calcola()
 
     def apri_bivariati(self):
-        FinestraBivariati(self)
+        # i dati gia' inseriti nella schermata principale diventano la colonna X
+        try:
+            dati = self.leggi_dati()
+        except ValueError:
+            dati = None
+        FinestraBivariati(self, dati)
 
     def pulisci(self):
         self.ultimi_dati = None

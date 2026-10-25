@@ -38,7 +38,7 @@ def _etichetta(v):
 
 def disegna_boxplot(ax, dati: list, stat: FunzioniStatistiche,
                     titolo: str = "Box plot", dettagli: bool = True):
-    """Box plot costruito con i quartili della classe FunzioniStatistiche.
+    """Box plot ORIZZONTALE costruito con i quartili della classe FunzioniStatistiche.
     Se dettagli=True aggiunge il riquadro con i valori numerici."""
     e = _etichetta
     q1 = stat.primoQuartile(dati)
@@ -50,9 +50,7 @@ def disegna_boxplot(ax, dati: list, stat: FunzioniStatistiche,
     interni = [v for v in dati if lim_inf <= v <= lim_sup]
     baffo_inf, baffo_sup = min(interni), max(interni)
 
-    ax.bxp(
-        [{"med": med, "q1": q1, "q3": q3, "whislo": baffo_inf, "whishi": baffo_sup,
-          "fliers": anomali, "mean": media}],
+    opzioni = dict(
         showmeans=True,
         patch_artist=True,
         boxprops={"facecolor": "#9ecae1", "edgecolor": "black"},
@@ -60,25 +58,32 @@ def disegna_boxplot(ax, dati: list, stat: FunzioniStatistiche,
         meanprops={"marker": "D", "markerfacecolor": "white", "markeredgecolor": "black"},
         flierprops={"marker": "o", "markerfacecolor": "none"},
     )
+    statistiche = [{"med": med, "q1": q1, "q3": q3, "whislo": baffo_inf, "whishi": baffo_sup,
+                    "fliers": anomali, "mean": media}]
+    try:
+        ax.bxp(statistiche, orientation="horizontal", **opzioni)  # matplotlib >= 3.10
+    except TypeError:
+        ax.bxp(statistiche, vert=False, **opzioni)  # versioni precedenti
+
     if dettagli:
         righe = [
-            f"Massimo (baffo)  : {e(baffo_sup)}",
-            f"Terzo quartile   : {e(q3)}",
-            f"Mediana          : {e(med)}",
-            f"Primo quartile   : {e(q1)}",
             f"Minimo (baffo)   : {e(baffo_inf)}",
+            f"Primo quartile   : {e(q1)}",
+            f"Mediana          : {e(med)}",
+            f"Terzo quartile   : {e(q3)}",
+            f"Massimo (baffo)  : {e(baffo_sup)}",
             f"Media (rombo)    : {e(media)}",
             f"Scarto interquart: {e(q3 - q1)}",
             "Outlier          : " + (", ".join(e(v) for v in sorted(set(anomali))) or "nessuno"),
         ]
-        ax.text(0.58, 0.5, "\n".join(righe), transform=ax.transAxes, va="center",
+        ax.text(0.5, 0.74, "\n".join(righe), transform=ax.transAxes, va="center", ha="center",
                 family="monospace", fontsize=9,
                 bbox={"boxstyle": "round", "facecolor": "white", "edgecolor": "gray"})
-        ax.set_xlim(0.4, 2.2)
+        ax.set_ylim(0.3, 2.3)
     ax.set_title(titolo)
-    ax.set_ylabel("Valori")
-    ax.set_xticks([])
-    ax.grid(axis="y", linestyle="--", alpha=0.4)
+    ax.set_xlabel("Valori")
+    ax.set_yticks([])
+    ax.grid(axis="x", linestyle="--", alpha=0.4)
 
 
 def disegna_istogramma(ax, dati: list, stat: FunzioniStatistiche, classi: list):
