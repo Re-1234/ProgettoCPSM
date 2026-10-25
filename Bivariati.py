@@ -5,7 +5,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
 from funzioniStatistiche import FunzioniStatistiche
-from grafici import sincronizza_canvas
+from grafici import disegna_boxplot, sincronizza_canvas
 from Tabella import TabellaDati
 
 
@@ -64,10 +64,26 @@ def calcola_bivariati(x: list, y: list, stat: FunzioniStatistiche):
     return "\n".join(righe), r, retta
 
 
+def r_e_retta(x: list, y: list, stat: FunzioniStatistiche):
+    """Restituisce (r, (a, b)); ognuno e' None se non definito."""
+    try:
+        r = stat.coefficienteCorrelazione(x, y)
+    except ValueError:
+        r = None
+    try:
+        retta = (stat.intercetta(x, y), stat.coefficienteAngolare(x, y))
+    except ValueError:
+        retta = None
+    return r, retta
+
+
 def disegna_grafici(fig: Figure, x: list, y: list, r, stat: FunzioniStatistiche, retta=None):
-    """Diagramma di dispersione (con la retta di regressione, se richiesta)."""
+    """In alto il diagramma di dispersione (con la retta di regressione, se richiesta);
+    sotto i box plot orizzontali di X e di Y."""
     fig.clear()
-    ax = fig.add_subplot(1, 1, 1)
+    gs = fig.add_gridspec(3, 1, height_ratios=[4, 1.2, 1.2])
+
+    ax = fig.add_subplot(gs[0])
     ax.scatter(x, y, color="#4C78A8", edgecolor="none", s=30, zorder=3)
     if retta is not None:
         a, b = retta
@@ -84,44 +100,28 @@ def disegna_grafici(fig: Figure, x: list, y: list, r, stat: FunzioniStatistiche,
     ax.set_title(titolo)
     ax.grid(linestyle="--", alpha=0.4)
 
+    disegna_boxplot(fig.add_subplot(gs[1]), x, stat, "Box plot di X", dettagli=False)
+    disegna_boxplot(fig.add_subplot(gs[2]), y, stat, "Box plot di Y", dettagli=False)
 
-class FinestraBivariati(tk.Toplevel):
-    """Finestra per i dati bivariati: diagramma di dispersione e correlazione."""
 
-    def __init__(self, master, dati_x=None):
+class SchermataBivariata(ttk.Frame):
+    """Schermata del campione bivariato: tabella (X, Y), risultati e tre pulsanti
+    (Calcola, Dati bivariati, Pulisci)."""
+
+    def __init__(self, master):
         super().__init__(master)
-        self.title("Dati bivariati")
-        self.geometry("1180x760")
-        self.minsize(1000, 640)
         self.stat = FunzioniStatistiche()
-        self._ultimo = None  # (x, y, r, retta) dell'ultimo calcolo
-        self.mostra_retta = tk.BooleanVar(value=True)
+        self.fin_grafici = None
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(2, weight=1)
 
-        self.columnconfigure(1, weight=1)
-        self.rowconfigure(0, weight=1)
-
-        # --- Colonna sinistra: input e risultati ---
-        sx = ttk.Frame(self)
-        sx.grid(row=0, column=0, sticky="ns", padx=(10, 5), pady=10)
-        sx.rowconfigure(2, weight=1)
-
-        fd = ttk.LabelFrame(sx, text="Dati")
-        fd.grid(row=0, column=0, sticky="ew", pady=(0, 5))
-        if dati_x:
-            ttk.Label(
-                fd, text="La colonna X contiene i dati inseriti nella schermata principale: "
-                         "completa la colonna Y.",
-                wraplength=380, justify="left", foreground="#1f4e79",
-            ).pack(anchor="w", padx=8, pady=(4, 0))
+        # --- Tabella dei dati ---
+        fd = ttk.LabelFrame(self, text="Campione bivariato (una coppia X, Y per riga)")
+        fd.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 5))
         self.tabella = TabellaDati(fd, altezza=230)
-        self.tabella.pack(fill="x", padx=5, pady=(5, 2))
-        if dati_x:
-            self.tabella.svuota(0)
-            for v in dati_x:
-                self.tabella.aggiungi_riga(self.tabella._testo(v), "")
-            self.after(200, lambda: self.tabella.righe[0][2].focus_set())
-        else:
-            self.tabella.svuota(8)
+        self.tabella.pack(padx=5, pady=(5, 2))
+        self.tabella.svuota(8)
+        self.nota = ttk.Label(fd, text="", wraplength=600, justify="left", foreground="#1f4e79")
         gestione = ttk.Frame(fd)
         gestione.pack(pady=(0, 5))
         ttk.Button(gestione, text="Aggiungi riga",
@@ -129,61 +129,99 @@ class FinestraBivariati(tk.Toplevel):
         ttk.Button(gestione, text="Elimina ultima riga",
                    command=self.tabella.elimina_riga).pack(side="left", padx=5)
 
-        bottoni = ttk.Frame(sx)
+        # --- Pulsanti: solo questi tre ---
+        bottoni = ttk.Frame(self)
         bottoni.grid(row=1, column=0, pady=5)
         ttk.Button(bottoni, text="Calcola", command=self.calcola).pack(side="left", padx=5)
+        ttk.Button(bottoni, text="Dati bivariati", command=self.apri_grafici).pack(side="left", padx=5)
         ttk.Button(bottoni, text="Pulisci", command=self.pulisci).pack(side="left", padx=5)
 
-        fr = ttk.LabelFrame(sx, text="Risultati")
-        fr.grid(row=2, column=0, sticky="nsew", pady=(5, 0))
+        # --- Risultati ---
+        fr = ttk.LabelFrame(self, text="Risultati")
+        fr.grid(row=2, column=0, sticky="nsew", padx=10, pady=(5, 10))
         self.area_risultati = scrolledtext.ScrolledText(
-            fr, width=46, height=12, wrap=tk.WORD, state="disabled", font=("Courier", 10)
+            fr, wrap=tk.WORD, height=12, state="disabled", font=("Courier", 10)
         )
         self.area_risultati.pack(fill="both", expand=True, padx=5, pady=5)
 
-        # --- Colonna destra: diagramma di dispersione ---
-        dx = ttk.LabelFrame(self, text="Diagramma di dispersione")
-        dx.grid(row=0, column=1, sticky="nsew", padx=(5, 10), pady=10)
-        ttk.Checkbutton(
-            dx, text="Mostra retta di regressione",
-            variable=self.mostra_retta, command=self.ridisegna,
-        ).pack(side="top", anchor="w", padx=8, pady=(4, 0))
-        self.fig = Figure(figsize=(6, 5), tight_layout=True)
-        self.canvas = FigureCanvasTkAgg(self.fig, master=dx)
-        NavigationToolbar2Tk(self.canvas, dx).update()
-        self.canvas.get_tk_widget().pack(fill="both", expand=True)
-
-        self.after(150, lambda: sincronizza_canvas(self.canvas))
-
+    # ---- utilita' ----
     def _scrivi(self, testo):
         self.area_risultati.config(state="normal")
         self.area_risultati.delete("1.0", tk.END)
         self.area_risultati.insert(tk.END, testo)
         self.area_risultati.config(state="disabled")
 
-    def calcola(self):
+    def _leggi(self):
+        """(x, y) oppure None (dopo aver mostrato l'errore)."""
         try:
-            x, y = self.tabella.leggi()
+            return self.tabella.leggi()
         except ValueError as e:
-            messagebox.showerror("Errore", str(e), parent=self)
-            return
+            messagebox.showerror("Errore", str(e))
+            return None
 
-        testo, r, retta = calcola_bivariati(x, y, self.stat)
-        self._ultimo = (x, y, r, retta)
+    def tabella_vuota(self) -> bool:
+        return not any(e.get().strip() for r in self.tabella.righe for e in r[1:])
+
+    def precompila_x(self, dati):
+        """Se la tabella e' vuota, mette nella colonna X i dati del campione semplice."""
+        if not dati or not self.tabella_vuota():
+            return
+        self.tabella.svuota(0)
+        for v in dati:
+            self.tabella.aggiungi_riga(self.tabella._testo(v), "")
+        self.nota.config(text="La colonna X contiene i dati inseriti nel campione semplice: "
+                              "completa la colonna Y.")
+        self.nota.pack(anchor="w", padx=8, pady=(2, 0), before=self.tabella)
+
+    # ---- pulsanti ----
+    def calcola(self):
+        dati = self._leggi()
+        if dati is None:
+            return
+        testo, _, _ = calcola_bivariati(dati[0], dati[1], self.stat)
         self._scrivi(testo)
-        self.ridisegna()
 
-    def ridisegna(self):
-        """Ridisegna i grafici (usato anche dalla casella della retta)."""
-        if self._ultimo is None:
+    def apri_grafici(self):
+        dati = self._leggi()
+        if dati is None:
             return
-        x, y, r, retta = self._ultimo
-        disegna_grafici(self.fig, x, y, r, self.stat, retta if self.mostra_retta.get() else None)
-        self.canvas.draw()
+        if self.fin_grafici is not None and self.fin_grafici.winfo_exists():
+            self.fin_grafici.destroy()
+        self.fin_grafici = FinestraGraficiBivariati(self, dati[0], dati[1])
 
     def pulisci(self):
-        self.tabella.svuota()
-        self._ultimo = None
+        self.tabella.svuota(8)
         self._scrivi("")
-        self.fig.clear()
+        self.nota.pack_forget()
+        if self.fin_grafici is not None and self.fin_grafici.winfo_exists():
+            self.fin_grafici.destroy()
+
+
+class FinestraGraficiBivariati(tk.Toplevel):
+    """Diagramma di dispersione (con retta di regressione opzionale) e box plot di X e Y."""
+
+    def __init__(self, master, x: list, y: list):
+        super().__init__(master)
+        self.title("Dati bivariati")
+        self.geometry("900x820")
+        self.minsize(600, 500)
+        self.x, self.y = x, y
+        self.stat = FunzioniStatistiche()
+        self.r, self.retta = r_e_retta(x, y, self.stat)
+        self.mostra_retta = tk.BooleanVar(value=True)
+
+        ttk.Checkbutton(
+            self, text="Mostra retta di regressione",
+            variable=self.mostra_retta, command=self.ridisegna,
+        ).pack(side="top", anchor="w", padx=10, pady=(8, 0))
+        self.fig = Figure(figsize=(7, 8), tight_layout=True)
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self)
+        NavigationToolbar2Tk(self.canvas, self).update()
+        self.canvas.get_tk_widget().pack(fill="both", expand=True)
+        self.ridisegna()
+        self.after(150, lambda: sincronizza_canvas(self.canvas))
+
+    def ridisegna(self):
+        disegna_grafici(self.fig, self.x, self.y, self.r, self.stat,
+                        self.retta if self.mostra_retta.get() else None)
         self.canvas.draw()

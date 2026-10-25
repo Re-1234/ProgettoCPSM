@@ -3,16 +3,15 @@ from tkinter import ttk, scrolledtext, messagebox
 
 from funzioniStatistiche import FunzioniStatistiche
 from grafici import FinestraGrafici
-from Bivariati import FinestraBivariati
+from Bivariati import SchermataBivariata
 from Classi import FinestraClassi, testo_tabella_classi
 
 
-class App(tk.Tk):
-    def __init__(self):
-        super().__init__()
-        self.title("Statistica descrittiva")
-        self.geometry("760x780")
-        self.minsize(600, 500)
+class SchermataSemplice(ttk.Frame):
+    """Schermata del campione semplice (nessun pulsante per i dati bivariati)."""
+
+    def __init__(self, master):
+        super().__init__(master)
         self.stat = FunzioniStatistiche()
         self.classi = None  # None = dati singoli; altrimenti lista di (a, b)
         self.fin_grafici = None
@@ -36,7 +35,6 @@ class App(tk.Tk):
         ttk.Button(buttons, text="Calcola", command=self.calcola).pack(side="left", padx=5)
         ttk.Button(buttons, text="Classi...", command=self.apri_classi).pack(side="left", padx=5)
         ttk.Button(buttons, text="Mostra grafici", command=self.apri_grafici).pack(side="left", padx=5)
-        ttk.Button(buttons, text="Dati bivariati", command=self.apri_bivariati).pack(side="left", padx=5)
         ttk.Button(buttons, text="Pulisci", command=self.pulisci).pack(side="left", padx=5)
 
         # --- TextArea 1: tabella frequenze ---
@@ -163,19 +161,51 @@ class App(tk.Tk):
         if self.entry.get().strip():
             self.calcola()
 
-    def apri_bivariati(self):
-        # i dati gia' inseriti nella schermata principale diventano la colonna X
-        try:
-            dati = self.leggi_dati()
-        except ValueError:
-            dati = None
-        FinestraBivariati(self, dati)
-
     def pulisci(self):
         self.ultimi_dati = None
         self.entry.delete(0, tk.END)
         self.scrivi(self.area_freq, "")
         self.scrivi(self.area_indici, "")
+
+
+class App(tk.Tk):
+    """Finestra principale: in alto si sceglie il tipo di campione (semplice o bivariato)."""
+
+    def __init__(self):
+        super().__init__()
+        self.title("Statistica descrittiva")
+        self.geometry("760x780")
+        self.minsize(600, 500)
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(1, weight=1)
+
+        sel = ttk.LabelFrame(self, text="Tipo di campione")
+        sel.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 0))
+        self.tipo = tk.StringVar(value="semplice")
+        ttk.Radiobutton(sel, text="Campione semplice", value="semplice",
+                        variable=self.tipo, command=self.cambia_tipo).pack(side="left", padx=10, pady=5)
+        ttk.Radiobutton(sel, text="Campione bivariato", value="bivariato",
+                        variable=self.tipo, command=self.cambia_tipo).pack(side="left", padx=10, pady=5)
+
+        self.semplice = SchermataSemplice(self)
+        self.bivariato = SchermataBivariata(self)
+        self.semplice.grid(row=1, column=0, sticky="nsew")
+        self.bivariato.grid(row=1, column=0, sticky="nsew")
+        self.bivariato.grid_remove()
+
+    def cambia_tipo(self):
+        if self.tipo.get() == "semplice":
+            self.bivariato.grid_remove()
+            self.semplice.grid()
+        else:
+            # i dati gia' scritti nel campione semplice diventano la colonna X
+            try:
+                dati = self.semplice.leggi_dati()
+            except ValueError:
+                dati = None
+            self.bivariato.precompila_x(dati)
+            self.semplice.grid_remove()
+            self.bivariato.grid()
 
 
 if __name__ == "__main__":

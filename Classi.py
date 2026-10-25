@@ -99,7 +99,7 @@ class FinestraClassi(tk.Toplevel):
         ttk.Button(azioni, text="Rimuovi classi", command=self.rimuovi).pack(side="left", padx=5)
         ttk.Button(azioni, text="Annulla", command=self.destroy).pack(side="left", padx=5)
 
-        self.transient(master)
+        self.transient(master.winfo_toplevel())
         try:
             self.wait_visibility()
             self.grab_set()
